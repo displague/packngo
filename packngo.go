@@ -119,6 +119,7 @@ type Client struct {
 	SpotMarket             SpotMarketService
 	SpotMarketRequests     SpotMarketRequestService
 	MetalGateways          MetalGatewayService
+	TransferRequest        TransferRequestsService
 	TwoFactorAuth          TwoFactorAuthService
 	Users                  UserService
 	VirtualCircuits        VirtualCircuitService
@@ -382,6 +383,7 @@ func NewClientWithBaseURL(consumerToken string, apiKey string, httpClient *http.
 	c.SpotMarket = &SpotMarketServiceOp{client: c}
 	c.SpotMarketRequests = &SpotMarketRequestServiceOp{client: c}
 	c.MetalGateways = &MetalGatewayServiceOp{client: c}
+	c.TransferRequest = &TransferRequestsServiceOp{client: c}
 	c.TwoFactorAuth = &TwoFactorAuthServiceOp{client: c}
 	c.Users = &UserServiceOp{client: c}
 	c.VirtualCircuits = &VirtualCircuitServiceOp{client: c}
