@@ -9,14 +9,26 @@ A Golang client for the Packet API.
 
 ![](https://www.packet.net/media/images/xeiw-packettwitterprofilew.png)
 
+## Installation
 
-Installation
-------------
+```sh
+go get github.com/packethost/packngo
+```
 
-`go get github.com/packethost/packngo`
+## Stability and Compatibility
 
-Usage
------
+Packngo is currently provided with a major version of
+[v0](https://blog.golang.org/v2-go-modules). We'll try to avoid breaking changes
+to this library, but they will certainly happen as we work towards a stable v1
+library. See [CHANGELOG.md](CHANGELOG.md) for details on the latest additions,
+removals, fixes, and breaking changes.
+
+While packngo provides an interface to most of the [Packet API](https://www.packet.com/developers/api/), the API is
+regularly adding new features. To request or contribute support for more API
+end-points or added fields, [create an
+issue](https://github.com/packethost/packngo/issues/new).
+
+## Usage
 
 To authenticate to the Packet API, you must have your API token exported in env var `PACKET_AUTH_TOKEN`.
 
@@ -52,8 +64,8 @@ This lib is used by the official [terraform-provider-packet](https://github.com/
 
 You can also learn a lot from the `*_test.go` sources. Almost all out tests touch the Packet API, so you can see how auth, querying and POSTing works. For example [devices_test.go](devices_test.go).
 
-Linked resources in Get\* and List\* functions
-----------------------------------------------
+## Linked resources in Get\* and List\* functions
+
 Most of the Get and List functions have *GetOptions resp. *ListOptions paramters. If you supply them, you can specify which attributes of resources in the return set can be excluded or included. This is useful for linked resources, e.g members of a project, devices in a project. 
 
 Linked resources usually have only the `Href` attribute populated, allowing you to fetch them in another API call. But if you explicitly `include` the linked resoruce attribute, it will be populated in the result set of the linking resource.
@@ -108,15 +120,14 @@ func main() {
 ```
 
 
-Acceptance Tests
-----------------
+## Acceptance Tests
 
 If you want to run tests against the actual Packet API, you must set envvar `PACKET_TEST_ACTUAL_API` to non-empty string for the `go test`. The device tests wait for the device creation, so it's best to run a few in parallel.
 
 To run a particular test, you can do
 
 ```
-$ PACKNGO_TEST_ACTUAL_API=1 go test -v -run=TestAccDeviceBasic
+$ PACKNGO_TEST_ACTUAL_API=1 go test -v -run=TestAccDeviceBasic --timeout=2h
 ```
 
 If you want to see HTTP requests, set the `PACKNGO_DEBUG` env var to non-empty string, for example:
