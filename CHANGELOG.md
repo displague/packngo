@@ -29,6 +29,7 @@ minimize them and move towards a 1.0 release.
 - Single error object api response is now handled correctly
 
 ### Changed
+- GetNetworkType returns a string, no longer returning an error
 - IPService was split to DeviceIPService and ProjectIPService
 - Renamed Device.IPXEScriptUrl -> Device.IPXEScriptURL
 - Renamed DeviceCreateRequest.HostName -> DeviceCreateRequest.Hostname
