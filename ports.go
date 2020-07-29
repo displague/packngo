@@ -1,8 +1,10 @@
 package packngo
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"time"
 )
 
 const portBasePath = "/ports"
@@ -231,6 +233,10 @@ func (i *DevicePortServiceOp) Convert2BondDevice(d *Device, targetType string) e
 			if err != nil {
 				return err
 			}
+			_, _, err = i.client.DevicePorts.Disbond(p, false)
+			if err != nil {
+				return err
+			}
 		}
 		for _, p := range ethPorts {
 			_, _, err := i.client.DevicePorts.Disbond(p, false)
@@ -318,6 +324,33 @@ func (i *DevicePortServiceOp) Convert1BondDevice(d *Device, targetType string) e
 	return nil
 }
 
+// waitDeviceNetworkType waits for a device's computed network type (as
+// determined by GetNetworkType()) to reach the specified state. An error will
+// be returned if the device does not attain the desired network type state when
+// the timeout is reached without
+func waitDeviceNetworkType(id, networkType string, c *Client) (*Device, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(15)*time.Minute)
+	defer cancel()
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			d, _, err := c.Devices.Get(id, nil)
+			if err != nil {
+				return nil, err
+			}
+			if d.GetNetworkType() == networkType {
+				return d, nil
+			}
+		case <-ctx.Done():
+			return nil, fmt.Errorf("device %s is still not in state %s after timeout", id, networkType)
+		}
+	}
+}
+
 func (i *DevicePortServiceOp) DeviceToNetworkType(deviceID string, targetType string) (*Device, error) {
 
 	d, _, err := i.client.Devices.Get(deviceID, nil)
@@ -345,7 +378,7 @@ func (i *DevicePortServiceOp) DeviceToNetworkType(deviceID string, targetType st
 		return nil, err
 	}
 
-	d, _, err = i.client.Devices.Get(deviceID, nil)
+	d, err = waitDeviceNetworkType(deviceID, targetType, i.client)
 	if err != nil {
 		return nil, err
 	}
