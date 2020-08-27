@@ -10,7 +10,11 @@ func TestAccFacilities(t *testing.T) {
 
 	c := setup(t)
 
-	l, _, err := c.Facilities.List(&ListOptions{Includes: []string{"address"}})
+	l, _, err := c.Facilities.List(
+		&ListOptions{
+			GetOptions: GetOptions{Includes: []string{"address"}},
+		},
+	)
 	if err != nil {
 		t.Fatal(err)
 	}

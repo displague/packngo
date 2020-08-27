@@ -879,7 +879,11 @@ func TestAccDeviceSSHKeys(t *testing.T) {
 	defer teardown()
 	hn := randString8()
 	userKey := createKey(t, c, "")
-	defer c.SSHKeys.Delete(userKey.ID)
+	defer func() {
+		if _, err := c.SSHKeys.Delete(userKey.ID); err != nil {
+			t.Fatal(err)
+		}
+	}()
 	projectKey := createKey(t, c, projectID)
 	defer c.SSHKeys.Delete(projectKey.ID)
 	cr := DeviceCreateRequest{
