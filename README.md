@@ -105,7 +105,7 @@ func main() {
 Acceptance Tests
 ----------------
 
-If you want to run tests against the actual Packet API, you must set envvar `PACKET_TEST_ACTUAL_API` to non-empty string for the `go test`. The device tests wait for the device creation, so it's best to run a few in parallel.
+If you want to run tests against the actual Packet API, you must set envvar `PACKET_TEST_ACTUAL_API` to non-empty string and set `PACKNGO_TEST_RECORDER` to `disabled`. The device tests wait for the device creation, so it's best to run a few in parallel.
 
 To run a particular test, you can do
 
@@ -119,6 +119,14 @@ If you want to see HTTP requests, set the `PACKNGO_DEBUG` env var to non-empty s
 $ PACKNGO_DEBUG=1 PACKNGO_TEST_ACTUAL_API=1 go test -v -run=TestAccVolumeUpdate
 ```
 
+Test Fixtures
+-------------
+
+By default, the tests will playback from recorded HTTP response fixtures (`PACKNGO_TEST_RECORDER` is treated as `play` when empty).
+
+When adding new tests, record the HTTP interactions to fixtures by setting the environment variable `PACKNGO_TEST_RECORDER` to `record`.
+
+The fixtures are automatically named according to the test they were run from. They are placed in `fixtures/`.  The API token used during authentication is automatically removed from these fixtures. Nonetheless, caution should be exercised before committing any fixtures into the project.  Account details includes API tokens, contact, and payment details could easily be leaked by committing fixtures that haven't been thoroughly reviewed.
 
 Committing
 ----------
