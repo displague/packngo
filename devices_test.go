@@ -8,31 +8,51 @@ import (
 	"time"
 )
 
-func waitDeviceActive(id string, c *Client) (*Device, error) {
+func waitDeviceActive(t *testing.T, c *Client, id string) *Device {
 	// 15 minutes = 180 * 5sec-retry
 	for i := 0; i < 180; i++ {
 		<-time.After(5 * time.Second)
 		d, _, err := c.Devices.Get(id, nil)
 		if err != nil {
-			return nil, err
+			t.Fatal(err)
+			return nil
 		}
 		if d.State == "active" {
-			return d, nil
+			return d
 		}
 		if d.State == "failed" {
-			return nil, fmt.Errorf("device %s provisioning failed", id)
+			t.Fatal(fmt.Errorf("device %s provisioning failed", id))
+			return nil
 		}
 	}
-	return nil, fmt.Errorf("device %s is still not active after timeout", id)
+
+	t.Fatal(fmt.Errorf("device %s is still not active after timeout", id))
+	return nil
 }
 
-func deleteDevice(t *testing.T, c *Client, id string) {
-	_, err := c.Devices.Delete(id, false)
-	if err != nil {
+func deleteDevice(t *testing.T, c *Client, id string, force bool) {
+	if _, err := c.Devices.Delete(id, force); err != nil {
 		t.Fatal(err)
 	}
 }
 
+func deleteSSHKey(t *testing.T, c *Client, id string) {
+	if _, err := c.SSHKeys.Delete(id); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func deleteVolume(t *testing.T, c *Client, id string) {
+	if _, err := c.Volumes.Delete(id); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func deleteVolumeAttachments(t *testing.T, c *Client, id string) {
+	if _, err := c.VolumeAttachments.Delete(id); err != nil {
+		t.Fatal(err)
+	}
+}
 func TestAccDeviceUpdate(t *testing.T) {
 	skipUnlessAcceptanceTestsAllowed(t)
 	t.Parallel()
@@ -56,7 +76,7 @@ func TestAccDeviceUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
 
 	if len(d.ProvisionEvents) != 10 {
 		t.Fatalf("10 provision events expected, but %d found", len(d.ProvisionEvents))
@@ -64,10 +84,7 @@ func TestAccDeviceUpdate(t *testing.T) {
 
 	dID := d.ID
 
-	d, err = waitDeviceActive(dID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, dID)
 
 	if len(d.RootPassword) == 0 {
 		t.Fatal("root_password is empty or non-existent")
@@ -114,7 +131,7 @@ func TestAccDeviceBasic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
 
 	if len(d.ProvisionEvents) != 10 {
 		t.Fatalf("10 provision events expected, but %d found", len(d.ProvisionEvents))
@@ -122,10 +139,7 @@ func TestAccDeviceBasic(t *testing.T) {
 
 	dID := d.ID
 
-	d, err = waitDeviceActive(dID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, dID)
 
 	if len(d.ShortID) == 0 {
 		t.Fatal("Device should have shortID")
@@ -197,12 +211,9 @@ func TestAccDevicePXE(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
 
-	d, err = waitDeviceActive(d.ID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, d.ID)
 
 	// Check that settings were persisted
 	if !d.AlwaysPXE {
@@ -262,12 +273,9 @@ func TestAccDeviceAssignGlobalIP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
 
-	d, err = waitDeviceActive(d.ID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, d.ID)
 
 	req := IPReservationRequest{
 		Type:        "global_ipv4",
@@ -398,11 +406,9 @@ func TestAccDeviceCreateWithReservedIP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d, err = waitDeviceActive(d.ID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Devices.Delete(d.ID, false)
+	d = waitDeviceActive(t, c, d.ID)
+
+	defer deleteDevice(t, c, d.ID, false)
 
 	reservation, _, err = c.ProjectIPs.Get(reservation.ID, nil)
 	if err != nil {
@@ -437,12 +443,9 @@ func TestAccDeviceAssignIP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
 
-	d, err = waitDeviceActive(d.ID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, d.ID)
 
 	req := IPReservationRequest{
 		Type:        PublicIPv4,
@@ -570,12 +573,9 @@ func TestAccDeviceAttachVolumeForceDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	//defer deleteDevice(t, c, d.ID)
+	// defer deleteDevice(t, c, d.ID, false)
 
-	d, err = waitDeviceActive(d.ID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, d.ID)
 
 	vcr := VolumeCreateRequest{
 		Size:         10,
@@ -588,7 +588,7 @@ func TestAccDeviceAttachVolumeForceDelete(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Volumes.Delete(v.ID)
+	defer deleteVolume(t, c, v.ID)
 
 	v, err = waitVolumeActive(v.ID, c)
 	if err != nil {
@@ -611,7 +611,7 @@ func TestAccDeviceAttachVolumeForceDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, err = c.Devices.Delete(d.ID, true)
+	defer deleteDevice(t, c, d.ID, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -639,12 +639,9 @@ func TestAccDeviceAttachVolume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
 
-	d, err = waitDeviceActive(d.ID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, d.ID)
 
 	vcr := VolumeCreateRequest{
 		Size:         10,
@@ -657,7 +654,7 @@ func TestAccDeviceAttachVolume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Volumes.Delete(v.ID)
+	defer deleteVolume(t, c, v.ID)
 
 	v, err = waitVolumeActive(v.ID, c)
 	if err != nil {
@@ -695,11 +692,7 @@ func TestAccDeviceAttachVolume(t *testing.T) {
 		t.Fatalf("wrong volume linked in device.volumes: %s, should be %s", d.Volumes[0].Href, v.ID)
 	}
 
-	_, err = c.VolumeAttachments.Delete(a.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	defer deleteVolumeAttachments(t, c, a.ID)
 }
 
 func TestAccDeviceSpotInstance(t *testing.T) {
@@ -730,12 +723,9 @@ func TestAccDeviceSpotInstance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
 
-	d, err = waitDeviceActive(d.ID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, d.ID)
 
 	if !d.SpotInstance {
 		t.Fatal("spot_instance is false, should be true")
@@ -777,14 +767,11 @@ func TestAccDeviceCustomData(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
 
 	dID := d.ID
 
-	d, err = waitDeviceActive(dID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, dID)
 
 	device, _, err := c.Devices.Get(dID, nil)
 	if err != nil {
@@ -855,12 +842,9 @@ func TestAccListDeviceEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
 
-	d, err = waitDeviceActive(d.ID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, d.ID)
 
 	events, _, err := c.Devices.ListEvents(d.ID, nil)
 	if err != nil {
@@ -879,13 +863,11 @@ func TestAccDeviceSSHKeys(t *testing.T) {
 	defer teardown()
 	hn := randString8()
 	userKey := createKey(t, c, "")
-	defer func() {
-		if _, err := c.SSHKeys.Delete(userKey.ID); err != nil {
-			t.Fatal(err)
-		}
-	}()
+	defer deleteSSHKey(t, c, userKey.ID)
+
 	projectKey := createKey(t, c, projectID)
-	defer c.SSHKeys.Delete(projectKey.ID)
+	defer deleteSSHKey(t, c, projectKey.ID)
+
 	cr := DeviceCreateRequest{
 		Hostname:     hn,
 		Facility:     []string{testFacility()},
@@ -898,12 +880,11 @@ func TestAccDeviceSSHKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
+
 	dID := d.ID
-	d, err = waitDeviceActive(dID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, dID)
+
 	d, _, err = c.Devices.Get(dID, &GetOptions{Includes: []string{"ssh_keys"}})
 	if err != nil {
 		t.Fatal(err)
@@ -933,11 +914,11 @@ func TestAccDeviceListedSSHKeys(t *testing.T) {
 	defer teardown()
 	hn := randString8()
 	userKey := createKey(t, c, "")
-	defer c.SSHKeys.Delete(userKey.ID)
+	defer deleteSSHKey(t, c, userKey.ID)
 	projectKey := createKey(t, c, projectID)
-	defer c.SSHKeys.Delete(projectKey.ID)
+	defer deleteSSHKey(t, c, projectKey.ID)
 	projectKey2 := createKey(t, c, projectID)
-	defer c.SSHKeys.Delete(projectKey2.ID)
+	defer deleteSSHKey(t, c, projectKey2.ID)
 	cr := DeviceCreateRequest{
 		Hostname:       hn,
 		Facility:       []string{testFacility()},
@@ -951,12 +932,10 @@ func TestAccDeviceListedSSHKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
 	dID := d.ID
-	d, err = waitDeviceActive(dID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, dID)
+
 	d, _, err = c.Devices.Get(dID, &GetOptions{Includes: []string{"ssh_keys"}})
 	if err != nil {
 		t.Fatal(err)
@@ -1011,14 +990,11 @@ func TestAccDeviceCreateFacilities(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
 
 	dID := d.ID
 
-	d, err = waitDeviceActive(dID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, dID)
 
 	placedInRequestedFacility := false
 	for _, fac := range facilities {
@@ -1058,14 +1034,11 @@ func TestAccDeviceIPAddresses(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer deleteDevice(t, c, d.ID)
+	defer deleteDevice(t, c, d.ID, false)
 
 	dID := d.ID
 
-	d, err = waitDeviceActive(dID, c)
-	if err != nil {
-		t.Fatal(err)
-	}
+	d = waitDeviceActive(t, c, dID)
 	_, err = d.GetNetworkType()
 	if err != nil {
 		t.Fatal(err)
